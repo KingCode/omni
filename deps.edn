@@ -1,0 +1,63 @@
+;; deps.edn (repo root)
+;;
+;; This file is for LOCAL DEVELOPMENT ONLY. It is never published and
+;; consumers never reference it. It exists so that:
+;;   - all modules can be tested individually or together from one place
+;;   - cross-module changes can be tested before each module is published
+;;     independently (each module's own deps.edn is the source of truth
+;;     for what actually ships).
+;;
+;; Each module under modules/<name> has its own deps.edn with only its
+;; own runtime deps -- that's what gets built into its published jar/pom.
+;; Nothing here leaks into that.
+
+{:paths []  ;; no source of its own -- this project has no code, only dev tooling
+
+ :deps
+ {;; :local/root deps pull in each module's *own* deps.edn deps too,
+  ;; so tests here run against the same dependency graph a consumer
+  ;; would get (plus whatever else this alias adds).
+  omni/cond-utils {:local/root "modules/cond-utils"}}
+
+ :aliases
+ {;; --- Run tests across ALL modules at once ---
+  ;; usage: clj -X:test:<module-1-test-alias>:etc
+  ;; OR     clj -X:test:testdirs
+  :test {:extra-paths ["dev"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :exec-fn test-runner/test
+         ;; :exec-args {:dirs ["modules/cond-utils/test"]}
+         }
+
+  ;; --- Run repl or tests for ONE module only ---
+  ;; usage clj -X:test:cond-utils :module '"cond-utils"'
+  :cond-utils {:extra-paths ["modules/cond-utils/test"]}
+  ;; .... add aliases, one for each module, and its test pat.
+  ;; 
+
+  ;; use if writing/debugging dev/test_runner.clj
+  :dev-dir {:extra-paths ["dev"]
+            :extra-deps {io.github.cognitect-labs/test-runner
+                         {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}
+ 
+  ;; --- Put all modules' src, test dirs on classpath
+  ;; or REPL with everything on the classpath, for cross-module dev ---
+  :all {:extra-paths ["modules/cond-utils/src","modules/cond-utils/test"]
+}
+
+  :cider-nrepl { ;;clj -M:cider-nrepl:all
+                :extra-deps 
+                {cider/cider-nrepl {:mvn/version "0.45.0"}
+                 org.clojure/tools.deps {:mvn/version "0.18.1335"}}
+                :main-opts ["-m" "nrepl.cmdline"
+                            "--middleware" "[cider.nrepl/cider-middleware]"]}
+
+  :dev {:extra-deps {io.github.tonsky/clj-reload {:mvn/version "1.0.0"}}}
+
+
+  ;; --- Lint everything (optional, if using clj-kondo) ---
+  ;; usage: clj -M:lint
+  :lint
+  {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2026.08.04"}}
+   :main-opts  ["-m" "clj-kondo.main" "--lint" "modules"]}}}
