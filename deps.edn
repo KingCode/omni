@@ -17,7 +17,10 @@
  {;; :local/root deps pull in each module's *own* deps.edn deps too,
   ;; so tests here run against the same dependency graph a consumer
   ;; would get (plus whatever else this alias adds).
-  omni.cond-utils {:local/root "modules/cond-utils"}}
+
+  ;; org.clojars.kingnuscodus/omni.cond-utils {:mvn/version "0.1.0-PATCH"}
+  org.clojars.kingnuscodus/omni.cond-utils {:local/root "modules/cond-utils"}
+}
 
  :aliases
  {;; --- Run tests across ALL modules at once ---
@@ -55,6 +58,9 @@
 
   :dev {:extra-deps {io.github.tonsky/clj-reload {:mvn/version "1.0.0"}}}
 
+  :build-deps ;; for maintaining/extending a module's build.clj in-repl 
+  {:extra-deps 
+   {io.github.clojure/tools.build {:git/tag "v0.10.14" :git/sha "1176afd"}}}   
 
   ;; --- Lint everything (optional, if using clj-kondo) ---
   ;; usage: clj -M:lint
