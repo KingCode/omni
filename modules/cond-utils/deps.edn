@@ -12,14 +12,17 @@
           {io.github.clojure/tools.build {:git/tag "v0.10.14" :git/sha "1176afd"}}
           ;; see build.clj
           :ns-default build}
-
   ;; clj -X:deploy  (deploy to Clojars, replaces Leiningen's :deploy-repositories)
+  ;; env CLOJARS_USERNAME=kingnuscodus CLOJARS_PASSWORD=$CLOJARS_TOKEN clj -X:deploy
+  ;; To verify the deploy worked, use:
+  ;;clj -Sdeps '{:deps {org.clojars.kingnuscodus/omni.cond-utils {:mvn/version "0.1.0-PATCH"}}}' \
+    ;; -M -e "(require 'omni.cond-utils.cond-let) (println :ok)"
   :deploy 
   {:extra-deps {slipset/deps-deploy {:mvn/version "0.2.5"}}
    :exec-fn deps-deploy.deps-deploy/deploy
    :exec-args 
    {:installer :remote
-    :artifact "target/omni.cond-utils-0.1.0-SNAPSHOT.jar"
+    :artifact "target/omni.cond-utils-0.1.0-PATCH.jar"
     :pom-file 
    "target/classes/META-INF/maven/org.clojars.kingnuscodus/omni.cond-utils/pom.xml"}}
 }}

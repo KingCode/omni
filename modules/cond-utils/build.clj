@@ -2,7 +2,7 @@
   (:require [clojure.tools.build.api :as b]))
 
 (def lib 'org.clojars.kingnuscodus/omni.cond-utils)
-(def version "0.1.0-SNAPSHOT")
+(def version "0.1.0-PATCH")
 (def class-dir "target/classes")
 (def basis (delay (b/create-basis {:project "deps.edn"})))
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
