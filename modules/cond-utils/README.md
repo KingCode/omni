@@ -6,6 +6,17 @@ Utilities around clojure.core/cond, currently:
 * omni.cond-utils/cond-let>
 
 
+## Installing
+
+__Clojure CLI / deps.edn__
+
+`org.clojars.kingnuscodus/omni.cond-utils {:mvn/version "0.1.0-PATCH"}`
+
+__Leiningen/Boot__
+
+`[org.clojars.kingnuscodus/omni.cond-utils "0.1.0-PATCH"]`
+
+
 ### Rationale
 
 Clojure's core `cond` provides fast and expressive branching on multiple clauses. However when branches require bindings of their own that don't warrant using a separate function, code can become unwieldy. Moving all bindings above the 'cond form could be wasteful when a binding may be used only in some or one of the branches.
