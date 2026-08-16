@@ -14,9 +14,12 @@
           :ns-default build}
 
   ;; clj -X:deploy  (deploy to Clojars, replaces Leiningen's :deploy-repositories)
-  :deploy {:extra-deps {slipset/deps-deploy {:mvn/version "0.2.5"}}
-           :exec-fn deps-deploy.deps-deploy/deploy
-           :exec-args {:installer :remote
-                       :artifact "target/syllektis-0.1.0-SNAPSHOT.jar"
-                       :pom-file "target/classes/META-INF/maven/org.clojars.kingnuscodus/syllektis/pom.xml"}}
+  :deploy 
+  {:extra-deps {slipset/deps-deploy {:mvn/version "0.2.5"}}
+   :exec-fn deps-deploy.deps-deploy/deploy
+   :exec-args 
+   {:installer :remote
+    :artifact "target/omni.cond-utils-0.1.0-SNAPSHOT.jar"
+    :pom-file 
+   "target/classes/META-INF/maven/org.clojars.kingnuscodus/omni.cond-utils/pom.xml"}}
 }}

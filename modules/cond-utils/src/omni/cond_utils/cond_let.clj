@@ -64,7 +64,7 @@
 ;;           (when (odd? x)
 ;;             (inc x))
 ;;         (when (even? n)
-;;           (dec n))))
+;;           (dec n))
 ;;         (let [y (inc n) z 80]
 ;;           (when (< 10 (+ y z))
 ;;             (* 2 n z)))
@@ -100,45 +100,3 @@
                               ~expr))
                          (emit more)))))]
     `(or ~@(emit clauses))))
-
-
-(defn cond-let-sample [n]
-  (cond-let 
-   (neg? x) [x n] (inc x)
-   (even? n) :>> (* (quot x n)  (dec n)) 
-   (< 9 (+ y z)) [y (inc n) z 3] (* 2 n z)
-   (= 7 (+ y z)) :>> "reused binding from previous clause"
-   :else n))
-
-(cond-let-sample -3) ;; => -2 
-(cond-let-sample 34) ;; => 33 
-(cond-let-sample 7) ;; => 42  
-(cond-let-sample 3) ;; => 3 
-(cond-let-sample 3) ;; =? "reused binding from previous clause"
-
-(defn cond-let>-sample [n]
-  (cond-let> 
-   (neg? x) [x n] (inc x)
-   (even? n) :>> (dec n) 
-   (< 10 (+ y z)) [y (inc n) z 3] (* 2 n z)
-   :else n)
-  )
-
-(comment 
-  (cond-let>-sample -3) ;; => -2
-
-  (cond-let>-sample 34) ;; => 33
-  
-  (cond-let>-sample 7) ;; => 42
-  
-  (cond-let>-sample 3) ;; => 3 
-
-  ;; cond-let> clauses don't nest bindings, uncomment to try:
-  #_(cond-let> 
-     (odd? x) [x 2] x
-     (even? x) :>> "even steven" ;; can't reuse higher up bindings!
-     :else :whatever)
-  ;; => ...Unable to resolve symbol: x in this context
-
-
-  )
