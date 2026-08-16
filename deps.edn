@@ -17,7 +17,7 @@
  {;; :local/root deps pull in each module's *own* deps.edn deps too,
   ;; so tests here run against the same dependency graph a consumer
   ;; would get (plus whatever else this alias adds).
-  omni/cond-utils {:local/root "modules/cond-utils"}}
+  omni.cond-utils {:local/root "modules/cond-utils"}}
 
  :aliases
  {;; --- Run tests across ALL modules at once ---
