@@ -10,11 +10,15 @@ Utilities around clojure.core/cond, currently:
 
 __Clojure CLI / deps.edn__
 
-`org.clojars.kingnuscodus/omni.cond-utils {:mvn/version "0.1.0-PATCH"}`
+```
+org.clojars.kingnuscodus/omni.cond-utils {:mvn/version "0.1.0-PATCH"}
+```
 
 __Leiningen/Boot__
 
-`[org.clojars.kingnuscodus/omni.cond-utils "0.1.0-PATCH"]`
+```
+[org.clojars.kingnuscodus/omni.cond-utils "0.1.0-PATCH"]
+```
 
 
 ### Rationale
