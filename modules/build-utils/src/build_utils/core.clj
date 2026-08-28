@@ -30,6 +30,8 @@
     - classes-dir: a string, the directory containing compiled classes, relative 
       to `root-dir`,defaults to \"target/classes\"
 
+  Use `mark-sandbox-config` and `mark-strict-config` to signal that functions should 
+  check that user.dir, root-dir and class-dir are in the same hierarchy.
 "
   ([lib version root-dir class-dir]
    (let [root-dir (or root-dir (default-root-dir))
@@ -43,3 +45,33 @@
   ([lib version]
    (let [root-dir (default-root-dir)]
      (create-config lib version root-dir default-class-subdir root-dir))))
+
+(defn mark-sandbox-config
+  "Marks a config as sandbox safe, i.e. that user dir, project-dir and target-dir
+   must be in the same folder hierarchy. project-dir and target-dir are allowed; 
+   project-dir and target-dir are allowed anywhere within user dir.
+"
+  [config]
+  (assoc config :sandbox-only? true))
+
+(defn mark-strict-config
+  "Marks a config as strict, the highest level of safety, where user dir must
+  contain both root-dir and class-dir, and root-dir must contain class-dir
+  (as expected and recommended, when used by client code).
+"
+  [config]
+  (assoc config :strict? true))
+
+(defn sandbox-violation?
+  "Returns true if one or both of project-dir and class-dir are outside of the 
+   user directory structure.  
+  ."
+  [project-dir target-dir])
+
+(defn strict-violation?
+  [project-dir target-dir])
+
+(defn check-sandbox-violation [config]
+  )
+
+(defn check-strict-violation [config])
