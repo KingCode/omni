@@ -59,7 +59,8 @@
 
   :dev {:extra-deps {io.github.tonsky/clj-reload {:mvn/version "1.0.0"}}}
 
-  :build-dev  {:extra-paths ["modules/build-utils/src"]}
+  :build-dev  {:extra-paths ["modules/build-utils/src"
+                             "modules/build-utils/test"]}
 
   ;; --- Lint everything (optional, if using clj-kondo) ---
   ;; usage: clj -M:lint

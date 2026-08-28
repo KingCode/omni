@@ -1,19 +1,18 @@
 (ns build-utils.core
-  (:import (java.io File))
-  (:require [clojure.edn :as edn]
+  (:require [build-utils.util :as u]
+            [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.java.io :as io]
             [clojure.tools.build.api :as b]
             [deps-deploy.deps-deploy :as dd]))
 
-(defn join-path [name1 name2 & more]
-  (->> more (cons name2) (cons name1)
-       (str/join File/separator)))
-
 (defn default-root-dir []
   (System/getProperty "user.dir"))
 
-(def default-class-subdir (join-path "target" "classes"))
+(defn user-dir []
+  (default-root-dir))
+
+(def default-class-subdir (u/join-path "target" "classes"))
 
 (defn create-config
 "Creates a configuration map to be passed to all functions in this namespace
@@ -39,25 +38,30 @@
      {:lib lib
       :version version
       :root-dir root-dir
-      :class-dir (join-path root-dir class-dir)}))
+      :class-dir (u/join-path root-dir class-dir)
+      ;; for convenience or error-checking
+      :user-dir (user-dir)}))
   ([lib version root-dir]
    (create-config lib version root-dir default-class-subdir))
   ([lib version]
    (let [root-dir (default-root-dir)]
      (create-config lib version root-dir default-class-subdir root-dir))))
 
-(defn mark-sandbox-config
-  "Marks a config as sandbox safe, i.e. that user dir, project-dir and target-dir
-   must be in the same folder hierarchy. project-dir and target-dir are allowed; 
-   project-dir and target-dir are allowed anywhere within user dir.
+(defn mark-sandboxed-config
+  "Marks a config as sandbox safe, i.e. that 'user dir' (the directory from which
+  the java process started must strictly contain both root-dir and class-dir;
+  project-dir and target-dir are allowed; project-dir and target-dir 
+  do not need to be related otherwise.
 "
   [config]
-  (assoc config :sandbox-only? true))
+  (assoc config :sandboxed? true))
 
 (defn mark-strict-config
-  "Marks a config as strict, the highest level of safety, where user dir must
-  contain both root-dir and class-dir, and root-dir must contain class-dir
-  (as expected and recommended, when used by client code).
+  "Marks a config as strict, the highest level of safety, where 'user dir' must
+  strictly contain both root-dir and class-dir, and root-dir must strictly contain
+  class-dir
+
+  This is expected and recommended, when used by client code.
 "
   [config]
   (assoc config :strict? true))
@@ -66,12 +70,30 @@
   "Returns true if one or both of project-dir and class-dir are outside of the 
    user directory structure.  
   ."
-  [project-dir target-dir])
+  [{:keys [user-dir root-dir class-dir sandboxed?] :as config}]
+  (or (not (u/strict-subpath? user-dir root-dir))
+      (not (u/strict-subpath? user-dir class-dir))))
 
 (defn strict-violation?
-  [project-dir target-dir])
+  [{:keys [root-dir class-dir strict?] :as config}]
+  (or (sandbox-violation? config)
+      (not (u/strict-subpath? root-dir class-dir))))
 
-(defn check-sandbox-violation [config]
-  )
+(defn violation-info [{:keys [user-dir root-dir class-dir]}]
+  {:user-dir (u/normalize user-dir)
+   :root-dir (u/normalize root-dir)
+   :class-dir (u/normalize class-dir)})
 
-(defn check-strict-violation [config])
+(defn check-sandbox-violation [{:keys [sandboxed?] :as config}]
+  (when (and sandboxed? (sandbox-violation? config))
+    (throw (ex-info 
+            "root-dir and class-dir must be children of user-dir"
+            (violation-info config)))))
+
+(defn check-strict-violation [{:keys [strict?] :as config}]
+  (when (and strict? (strict-violation? config))
+    (throw 
+     (ex-info
+      "The containment hierarchy user-dir >= root-dir > class-dir is not respected",
+      (violation-info config)))))
+
