@@ -7,13 +7,9 @@
             [clojure.string :as str]))
 
 (defn path->str--ensure-unix [normalized-path]
-  (let [elems (atom [])
-        iter (-> normalized-path (.iterator))]
-    (while (.hasNext iter)
-      (swap! elems conj (.next iter)))
-    (->> @elems 
-         (str/join "/")
-         (str "/"))))
+  (->> normalized-path (.iterator) iterator-seq
+       (str/join "/")
+       (str "/")))
 
 (deftest normalize-test
   (testing "that paths resolve to the simplest form"
@@ -29,14 +25,14 @@
 
 (deftest subpath?-test
   (testing "confirming subpath? tests, i.e. parent >= child"
-    (are [p c] (subpath? p c)
+    (are [p c] (subpath? p c :do-normalize)
       "/a" "/a"
       "/a" "/a/b"
       "/a" "/a/b/c/../d/e/./f"
       "/" "/a"
       "/" "."))
   (testing "negating subpath? tests, i.e. child < parent"
-    (are [c p] (not (subpath? c p))
+    (are [c p] (not (subpath? c p :do-normalize))
       "/a" "/"
       "/a/b" "/a"
       "/a/b/c/../d/e/./f" "/a/b/c"
@@ -44,12 +40,12 @@
 
 (deftest strict-subpath?-test
   (testing "confirming strict-subpath? tests"
-    (are [p c] (strict-subpath? p c)
+    (are [p c] (strict-subpath? p c :do-normalize)
       "/a" "/a/b"
       "/a" "/.././a/b"
       "/" "."))
   (testing "negating strict-subpath? tests"
-    (are [c-or-p p] (not (strict-subpath? c-or-p p))
+    (are [c-or-p p] (not (strict-subpath? c-or-p p :do-normalize))
       "/a" "/"
       "/a" "/a")))
 
