@@ -1,5 +1,5 @@
 (ns build-utils.util
-  (:import (java.nio.file Paths)
+  (:import (java.nio.file Paths Path Files)
            (java.io File))
   (:require [clojure.string :as str]))
 
@@ -34,3 +34,26 @@
     (->> path (.iterator) iterator-seq 
          (map str)
          vec)))
+
+(defn xf-binding [sym xf]
+  `[~sym (~xf ~sym)])
+
+(defmacro let-with-bindings
+  "Emits a let binding symbols and one-arg calls to transformations on them,
+   around `body` e.g. 
+
+  (let-with-bindings [a? b?] boolean (cond a? \"a\" b? \"b\" :else \"other\"))
+  
+  yields
+
+      (let [a? (boolean a?) b? (boolean b?)] ...)
+ "
+  [syms xf & body]
+  (let [binds (->> syms 
+                   (map #(xf-binding % xf))
+                   (apply concat))]
+    `(let [~@binds]
+       ~@body)))
+
+(defn exists? [^:Path path]
+  (Files/exists path (into-array java.nio.file.LinkOption [])))
