@@ -31,25 +31,42 @@
       should be created and used only by the build scripts (client code), as it 
       will be overwritten and deleted. Choose with care!
 
+  Optional arguments: 
+  :sandboxed? if truthy, constrains root-dir and target-dir to be
+              subdirs of user-dir, and throw an error if violated. 
+  
+  :strict? if truthy, like :sandboxed? constraints, but target-dir must also
+           be a proper (strict) subdirectory of root-dir, and throw an error
+           if violated; throw an error if violated.
+
+  :no-overwrite? if truthy, target-dir must not exist; an error is thrown
+                 if violated. 
+
+  :excluded if present, a sequential of names that are not allowed on 
+            target-dir's path. An error is thrown if violated.
+
+  :dry-run? if truthy, only report on configuration constraints and compliance
+            without doing any build work, or directory/file creation. No exception
+            is thrown. All possible violations are reported. 
+
   In the returned map, all paths are absolute and normalized.
 
-  Use `mark-sandbox-config` and `mark-strict-config` to signal that functions should 
-  check that user.dir, root-dir and target-dir are in the same hierarchy.
 "
-  ([lib version root-dir tgt-dir]
+  ([lib version root-dir tgt-dir 
+    & {:keys [sandboxed? strict? no-overwrite? excluded dry-run? :as opts]}]
    (let [root-dir (or root-dir (default-root-dir))
          tgt-dir (or tgt-dir (default-target-dir))]
-     {:lib lib
-      :version version
-      :root-dir (-> root-dir u/normalize)
-      :target-dir (u/join-path root-dir tgt-dir)
-      ;; for convenience or error-checking
-      :user-dir (user-dir)}))
+     (->> {:lib lib
+           :version version
+           :root-dir (-> root-dir u/normalize)
+           :target-dir (u/join-path root-dir tgt-dir)
+           :user-dir (user-dir)}
+          (merge opts))))
   ([lib version root-dir]
-   (create-config lib version root-dir default-target-dir))
+   (create-config lib version root-dir default-target-dir
+                  :strict? :yes))
   ([lib version]
-   (let [root-dir (default-root-dir)]
-     (create-config lib version root-dir default-target-dir root-dir))))
+   (create-config lib version (default-root-dir) default-target-dir)))
 
 (defn mark-as-sandboxed
   "Marks a config as sandbox safe, i.e. that 'user dir' (the directory from which
@@ -121,8 +138,9 @@
                     " are set in config (:sandboxed?, :strict? or :excluded...")))))
 
 (defn handle-violation
-  "Reports on the command line and/or throws an exception depending on whether 
+  "Reports on the command line and throws an exception depending on whether 
    a violation occurred and other parameters, and the configuration.
+
    Parameters:
      - failed? boolean, whether there is a violation of some kind  
      - fail-msg string, the message to print if any
@@ -134,8 +152,8 @@
   When no exception is thrown, returns nil if no violation occurred, and the 
   violation type otherwise.
   "
-  [failed? fail-msg fail-map dry-run? ok-msg violation-type
-   {:keys [strict? sandboxed? excluded no-overwrite?] :as config}]
+  [failed? fail-msg fail-map ok-msg violation-type
+   {:keys [strict? sandboxed? excluded no-overwrite? dry-run?] :as config}]
   (let [do-throw #(throw (ex-info fail-msg fail-map))
         pr-v #(apply pprint-violation fail-msg fail-map %&)
         return (fn [] nil)
@@ -166,47 +184,43 @@
        :else
        (pr-ok+return)))))
 
-(defn check-sandbox-violation [config & [dry-run?]]
+(defn check-sandbox-violation [config]
   (let [failed? (sandbox-violation? config)]
     (handle-violation 
      failed?
      "Root-dir and target-dir must be children of user-dir:"
      (violation-info config)
-     dry-run?
      "No sandbox violation."
      :sandbox
      config)))
 
-(defn check-strict-violation [config & [dry-run?]]
+(defn check-strict-violation [config]
   (let [failed?  (strict-violation? config)]
     (handle-violation 
      failed?
      "The containment hierarchy user-dir >= root-dir > target-dir is not respected:"
      (violation-info config)
-     dry-run?
      "No strict-mode violation."
      :strict
      config)))
 
-(defn check-excluded-violation [config & [dry-run?]]
+(defn check-excluded-violation [config]
   (let [failed?  (excluded-violation? config)]
     (handle-violation 
      failed?
      (str "The target directory has the name of an excluded directory"
           " in its path. ")
      (violation-info config)
-     dry-run?
      "No excluded dir name in target's path elements."
      :excluded
      config)))
 
-(defn check-overwrite-violation [config & [dry-run?]]
+(defn check-no-overwrite-violation [config]
   (let [failed? (overwrite-violation? config)]
     (handle-violation
      failed?
      (str "The target directory already exist, and will be overwritten. ")
      (violation-info config)
-     dry-run?
      "No overwrite violation. "
      :no-overwrite
      config)))
