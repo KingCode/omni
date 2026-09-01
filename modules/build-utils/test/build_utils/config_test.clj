@@ -31,8 +31,8 @@
        (map #(vector % :yes))))
 
 (defn add-constraints [config & kws]
-  (->> kws bool-constraints (into config))
-)
+  (->> kws bool-constraints (into config)))
+
 (defn new-config 
   ([root-dir target-dir excluded & bool-kws]
    (->> :dry-run? (conj bool-kws) bool-constraints flatten
@@ -50,7 +50,15 @@
           (normalized-paths? conf))
       "a" "b"
       "/a/b/../b/c" "a/b/c"
-      "a" "..")))
+      "a" ".."))
+  (testing "that all constraints are as expected"
+    (let [base-config (new-config [])]
+      (are [kws]
+          (let [c (apply add-constraints base-config kws)]
+            (->> kws (every? #(get c %))))
+        [:sandboxed?]
+        [:strict? :no-overwrite?]
+        [:a :b :c :d]))))
 
 (deftest check-sandbox-violation-test
   (let [nc #(new-config % %2 [] :sandboxed?)]
@@ -70,4 +78,26 @@
         "a/b/c" "../.."
         "a" "b"
         "a" "a/b"))))
+
+
+(deftest check-strict-violation-test
+  (let [nc #(new-config % %2 [] :strict?)]
+    (testing "strict violations"
+      (are [root-dir tgt-dir]
+          (= :strict (check-strict-violation (nc root-dir tgt-dir)))
+        "a" ".."
+        "a" "../a"
+        "a" "../../.."))
+    (testing "strict mode compliance"
+      (are [root-dir tgt-dir]
+          (nil? (check-strict-violation (nc root-dir tgt-dir)))
+        "a" "a"
+        "a" "b"
+        "modules/build-utils" "target"))))
+
+
+
+
+
+
 

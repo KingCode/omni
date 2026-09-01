@@ -161,7 +161,7 @@
         return (fn [] nil)
         return-v (fn [] violation-type)
         pr+return-v #(do (pr-v) (return-v))
-        pr-ok #(println (str ok-msg " Success!\n"))
+        pr-ok #(println (str ok-msg (when single-check? " Success!\n")))
         pr-ok+return #(do (pr-ok) (return))]
 
     (u/let-with-bindings 
