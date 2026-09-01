@@ -3,15 +3,30 @@
            (java.io File))
   (:require [clojure.string :as str]))
 
+(defn ->Path [path-str]
+  (->> (into-array String [])
+       (Paths/get path-str)))
+
+(defn normalize-Path [^:Path path]
+  (-> path (.toAbsolutePath) (.normalize)))
+
 (defn normalize [path]
-  (if (not (instance? String path))
-    (throw (ex-info "Expecting a dir path string." 
-                    {:input path
-                     :type (type path)}))
-    (->> (into-array String [])
-         (Paths/get path)
-         (.toAbsolutePath)
-         (.normalize))))
+  (str 
+   (cond
+     (instance? Path path)
+     (normalize-Path path)
+
+     (instance? String path)
+     (->> (into-array String [])
+          (Paths/get path)
+          (.toAbsolutePath)
+          (.normalize))
+
+     :else
+     (throw (ex-info (str "Expecting a directory path string"
+                          " or a java.nio.file.Path object.") 
+                     {:input path
+                      :type (type path)})))))
 
 (defn subpath? 
   ([parent child & [normalize?]]

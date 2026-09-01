@@ -53,13 +53,13 @@
 
 "
   ([lib version root-dir tgt-dir 
-    & {:keys [sandboxed? strict? no-overwrite? excluded dry-run? :as opts]}]
-   (let [root-dir (or root-dir (default-root-dir))
-         tgt-dir (or tgt-dir (default-target-dir))]
+    & {:keys [sandboxed? strict? no-overwrite? excluded dry-run?] :as opts}]
+   (let [root-dir (u/normalize (or root-dir (default-root-dir)))
+         tgt-dir (or tgt-dir default-target-dir)]
      (->> {:lib lib
            :version version
            :root-dir (-> root-dir u/normalize)
-           :target-dir (u/join-path root-dir tgt-dir)
+           :target-dir (u/normalize (u/join-path root-dir tgt-dir))
            :user-dir (user-dir)}
           (merge opts))))
   ([lib version root-dir]
@@ -128,11 +128,12 @@
    :excluded excluded})
 
 (defn pprint-violation [fail-msg fail-map & [warning?]]
-  (let [pr #(pp/pprint %), indent (pp/pprint-indent)]
+  (let [pr #(pp/pprint %) 
+        indent #(print "\t")#_#(pp/pprint-indent :current 4)]
     (when warning?
       (println "WARNING!"))
-    (indent) (pr fail-msg) (newline)
-    (indent) (pr fail-map) (newline)
+    (pr fail-msg) (newline)
+    (pr fail-map) (newline)
     (when warning?
       (println (str "Proceeding with execution since no restriction flags"
                     " are set in config (:sandboxed?, :strict? or :excluded...")))))
@@ -153,7 +154,8 @@
   violation type otherwise.
   "
   [failed? fail-msg fail-map ok-msg violation-type
-   {:keys [strict? sandboxed? excluded no-overwrite? dry-run?] :as config}]
+   {:keys [strict? sandboxed? excluded no-overwrite? dry-run? 
+           single-check?] :as config}]
   (let [do-throw #(throw (ex-info fail-msg fail-map))
         pr-v #(apply pprint-violation fail-msg fail-map %&)
         return (fn [] nil)
@@ -181,8 +183,8 @@
        ;; catch-all errors
        [true     _         _            _         _            _    ] (pr+return-v)
        ;; catch-all success
-       :else
-       (pr-ok+return)))))
+       [false    _         _            _         _            _    ]
+       (if single-check? (return) (pr-ok+return))))))
 
 (defn check-sandbox-violation [config]
   (let [failed? (sandbox-violation? config)]
