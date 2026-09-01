@@ -1,6 +1,7 @@
 (ns build-utils.config-test
   (:require [build-utils.config :refer [create-config 
                                         sandbox-violation?
+                                        excluded-violation?
                                         check-sandbox-violation
                                         check-strict-violation
                                         check-excluded-violation
@@ -36,7 +37,9 @@
 (defn new-config 
   ([root-dir target-dir excluded & bool-kws]
    (->> :dry-run? (conj bool-kws) bool-constraints flatten
-        (apply create-config 'mylib "version-0" root-dir target-dir)))
+        (into [:excluded excluded])
+        (apply create-config 'mylib "version-0" 
+               root-dir target-dir )))
   ([bool-kws]
    (apply new-config fixture-root-dir "target" [] bool-kws)))
 
@@ -95,6 +98,23 @@
         "a" "b"
         "modules/build-utils" "target"))))
 
+(deftest check-excluded-violation-test
+  (let [nc #(new-config % %2 %3)]
+    (testing "excluded violations"
+      (are [root-dir tgt-dir excl]
+          (let [c (nc root-dir tgt-dir excl)]
+            (= :excluded (check-excluded-violation c)))
+        "a" "src/b" ["src" "test"]
+        "a" "test/b" ["src" "test"]
+        "a" "src/b/test" ["src" "test"]
+        "a" "src/b/test" ["test"]))
+    (testing "excluded compliance"
+      (are [root-dir tgt-dir excl]
+          (let [c (nc root-dir tgt-dir excl)]
+            (nil? (check-excluded-violation c)))
+        "a" "b" []
+        "a" "b" ["c" "d"]
+        "a" "b/target" ["src" "test"]))))
 
 
 

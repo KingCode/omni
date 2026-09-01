@@ -45,7 +45,15 @@
        (str/join File/separator)))
 
 (defn path-elems [path]
-  (let [path (if (instance? String path) (normalize path) path)]
+  (let [path (cond 
+               (instance? String path) (-> path normalize ->Path)
+               
+               (instance? Path path) path
+
+               :else 
+               (throw (ex-info 
+                       "path must be a string or a java.nio.file.Path obj."
+                       {:path path})))]
     (->> path (.iterator) iterator-seq 
          (map str)
          vec)))
