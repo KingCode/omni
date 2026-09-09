@@ -10,7 +10,11 @@
 (defn normalize-Path [^:Path path]
   (-> path (.toAbsolutePath) (.normalize)))
 
-(defn normalize [path]
+(defn normalize
+  "Yields an absolute, normalized (simplest possible) path,
+  e.g. (normalize \"/a/.././b\") => /b\" and so forth.
+"
+[path]
   (str 
    (cond
      (instance? Path path)
@@ -78,5 +82,7 @@
     `(let [~@binds]
        ~@body)))
 
-(defn exists? [^:Path path]
+(defn exists?
+"Yields true if `path` exists on the disk, and false otherwise."
+ [^:Path path]
   (Files/exists path (into-array java.nio.file.LinkOption [])))

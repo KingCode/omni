@@ -37,6 +37,7 @@
   ;; --- Run repl or tests for ONE module only ---
   ;; usage clj -X:test:cond-utils :module '"cond-utils"'
   :cond-utils {:extra-paths ["modules/cond-utils/test"]}
+  :build-utils {:extra-paths ["modules/build-utils/test"]}
   ;; .... add aliases, one for each module, and its test pat.
   ;; 
 
@@ -47,7 +48,8 @@
  
   ;; --- Put all modules' src, test dirs on classpath
   ;; or REPL with everything on the classpath, for cross-module dev ---
-  :all {:extra-paths ["modules/cond-utils/src","modules/cond-utils/test"]
+  :all {:extra-paths ["modules/cond-utils/src","modules/cond-utils/test"
+                      "modules/build-utils/src", "modules/build-utils/test"]
 }
 
   :cider-nrepl { ;;clj -M:cider-nrepl:all

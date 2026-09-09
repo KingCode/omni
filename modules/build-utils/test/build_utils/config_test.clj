@@ -7,13 +7,14 @@
                                         check-excluded-violation
                                         check-no-overwrite-violation]]
             [clojure.test :refer [deftest testing is are]]
-            [build-utils.util :as u]))
+            [build-utils.util :as u]
+            [build-utils.test-util :as tu]))
 
 (def user-dir (System/getProperty "user.dir"))
 
 (def fixture-root-dir
 "The absolute path of test-resources dir in this module. 
- MUST be used ONLY when running tests from omni super-root"
+ Intended to be used ONLY when running tests from omni super-root"
   (-> user-dir 
       (u/join-path "modules/build-utils/test-resources/fixture-project")))
 
@@ -115,6 +116,12 @@
         "a" "b" []
         "a" "b" ["c" "d"]
         "a" "b/target" ["src" "test"]))))
+
+#_(deftest check-overwrite-violation-test 
+  (let [nc #(new-config % %2 [] :no-overwrite?)]
+    (testing "overwrite violations"
+      (fs/with-tempdir-within- [dir ])
+)))
 
 
 
