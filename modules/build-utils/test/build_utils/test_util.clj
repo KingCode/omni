@@ -21,31 +21,41 @@
 
 (defn split-path [path] (-> path ->Path path-elems))
 
+(defn no-dots [path] (-> path fs/normalize str))
+
 (defmacro with-dirpath
   "Creates (base-dir)/(rel-path) as a directory hierarchy (mkdir -p style),
    runs body, then deletes that subtree (rm -rf), even if body throws.
 
    Throws ex-info if base-dir does not exist, or exists but isn't a directory."
   [base-dir rel-path & body]
-  `(let [base-dir#  ~base-dir
-         full-path# (fs/path base-dir# ~rel-path)
-         delete-root# (fs/path base-dir# ~(-> rel-path split-path first))]
+  `(let [rel-path# (no-dots ~rel-path)
+         base-dir#  (no-dots ~base-dir)
+         full-path# (no-dots (fs/path base-dir# ~rel-path))
+         delete-root# (fs/path base-dir# (-> rel-path# split-path first))]
+     ;; (println :FULL-PATH full-path#)
+     ;; (println :BASE-DIR base-dir#)
      (cond
        (not (fs/exists? base-dir#))
-       (throw (ex-info "Directory does not exist" {:base-dir base-dir#}))
+       (throw (ex-info "Base directory does not exist" {:base-dir base-dir#}))
 
        (not (fs/directory? base-dir#))
-       (throw (ex-info "Path exists but is not a directory" {:base-dir base-dir#})))
+       (throw (ex-info "Path exists but is not a directory" {:base-dir base-dir#}))
+
+       (= base-dir# (no-dots full-path#))
+       (throw (ex-info "Path is base directory, must be a subdirectory."
+                       {:base-dir base-dir# :full-path full-path#})))
+     (println "Creating path:\n\t" (str full-path#))
      (fs/create-dirs full-path#)
      (try
        ~@body
        (finally
-         (println "DELETING" delete-root#)
+         (println "Deleting directory tree:\n\t" (str delete-root#))
          (fs/delete-tree delete-root#)))))
 
 (defmacro within-test-resources-dir [rel-path & body]
   `(with-dirpath 
-       (fs/path (super-root) "modules/build-utils/test-resources")
+       (str (fs/path (super-root) "modules/build-utils/test-resources"))
        ~rel-path 
      ~@body))
 

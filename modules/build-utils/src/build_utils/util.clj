@@ -84,5 +84,13 @@
 
 (defn exists?
 "Yields true if `path` exists on the disk, and false otherwise."
- [^:Path path]
-  (Files/exists path (into-array java.nio.file.LinkOption [])))
+ [path]
+  (let [path 
+        (cond
+          (string? path) (->Path path)
+          (instance? Path path) path
+          :else 
+          (throw 
+           (ex-info "Must be a directory path string or java.nio.file.Path"
+                    {:path path})))] 
+    (Files/exists path (into-array java.nio.file.LinkOption []))))

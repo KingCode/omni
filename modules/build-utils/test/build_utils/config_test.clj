@@ -1,22 +1,34 @@
 (ns build-utils.config-test
-  (:require [build-utils.config :refer [create-config 
-                                        sandbox-violation?
-                                        excluded-violation?
-                                        check-sandbox-violation
-                                        check-strict-violation
-                                        check-excluded-violation
-                                        check-no-overwrite-violation]]
+  (:require [build-utils.config :as sut
+             :refer [create-config 
+                     sandbox-violation?
+                     excluded-violation?
+                     check-sandbox-violation
+                     check-strict-violation
+                     check-excluded-violation
+                     check-no-overwrite-violation]]
             [clojure.test :refer [deftest testing is are]]
+            [babashka.fs :as fs]
             [build-utils.util :as u]
             [build-utils.test-util :as tu]))
 
-(def user-dir (System/getProperty "user.dir"))
+(def user-dir 
+  "The super-root of this project, .i.e. the parent of modules/build-utils
+   and all other modules in the monorepo structure."
+ (System/getProperty "user.dir"))
+
+(def test-resources-dir
+"The absolute path of test-resources dir in build-utils (this) module. 
+ Intended to be used ONLY when running tests in this namespace 
+ from omni super-root"
+  (-> user-dir (fs/path "modules/build-utils/test-resources") str))
 
 (def fixture-root-dir
-"The absolute path of test-resources dir in this module. 
- Intended to be used ONLY when running tests from omni super-root"
-  (-> user-dir 
-      (u/join-path "modules/build-utils/test-resources/fixture-project")))
+"The absolute path of fixture-project dir in build-utils (this) module. 
+ Intended to be used ONLY when running tests in this namespace 
+ from omni super-root"
+  (-> test-resources-dir (fs/path "fixture-project") str))
+
 
 (defn from-userdir [relative-path]
   (u/join-path user-dir relative-path))
@@ -117,11 +129,23 @@
         "a" "b" ["c" "d"]
         "a" "b/target" ["src" "test"]))))
 
-#_(deftest check-overwrite-violation-test 
-  (let [nc #(new-config % %2 [] :no-overwrite?)]
-    (testing "overwrite violations"
-      (fs/with-tempdir-within- [dir ])
-)))
+(deftest check-overwrite-violation-test 
+  (let [nc #(new-config test-resources-dir % [] :no-overwrite?)]
+    (testing "no-overwrite violations detection"
+      (are [relpath-to-create]
+          (tu/within-test-resources-dir relpath-to-create 
+            ;; new name for clarity
+            (let [existing-dir relpath-to-create
+                  cf (nc existing-dir)]
+              (= :no-overwrite (check-no-overwrite-violation cf))))
+        "tmp/a/b/c"
+        "tmp"))
+    (testing "no-overwrite violation compliance"
+      (let [cf (nc "target")]
+        (are [relpath-to-create]
+           (nil? (check-no-overwrite-violation cf))
+          "tmp/a/b/c"
+          "tmp")))))
 
 
 

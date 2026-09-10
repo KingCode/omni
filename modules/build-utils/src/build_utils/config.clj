@@ -118,7 +118,7 @@
             (some (set excluded)))))
 
 (defn overwrite-violation? 
-  [{:keys [target-dir overwrite-protected?] :as config}]
+  [{:keys [target-dir] :as config}]
   (u/exists? target-dir))
 
 (defn violation-info [{:keys [user-dir root-dir target-dir excluded]}]
