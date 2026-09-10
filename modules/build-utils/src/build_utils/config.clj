@@ -154,14 +154,16 @@
   violation type otherwise.
   "
   [failed? fail-msg fail-map ok-msg violation-type
-   {:keys [strict? sandboxed? excluded no-overwrite? dry-run? 
-           single-check?] :as config}]
+   {:keys [strict? sandboxed? excluded no-overwrite? dry-run?
+           verbose? warning? single-check?] :as config}]
   (let [do-throw #(throw (ex-info fail-msg fail-map))
-        pr-v #(apply pprint-violation fail-msg fail-map %&)
+        print? (or verbose? warning?)
+        pr-v #(and print? (apply pprint-violation fail-msg fail-map %&))
         return (fn [] nil)
         return-v (fn [] violation-type)
-        pr+return-v #(do (pr-v) (return-v))
-        pr-ok #(println (str ok-msg (when single-check? " Success!\n")))
+        pr+return-v #(do (and print? (pr-v)) (return-v))
+        pr-ok #(and verbose? 
+                    (println (str ok-msg (when single-check? " Success!\n"))))
         pr-ok+return #(do (pr-ok) (return))]
 
     (u/let-with-bindings 
