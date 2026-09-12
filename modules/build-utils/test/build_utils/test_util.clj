@@ -53,10 +53,18 @@
          (println "Deleting directory tree:\n\t" (str delete-root#))
          (fs/delete-tree delete-root#)))))
 
+(def testres-dir "modules/build-utils/test-resources")
+
 (defmacro within-test-resources-dir [rel-path & body]
   `(with-dirpath 
-       (str (fs/path (super-root) "modules/build-utils/test-resources"))
+       (str (fs/path (super-root) testres-dir))
        ~rel-path 
+     ~@body))
+
+(defmacro within-test-resources-tmpdir [tmpdir-relpath rel-path & body]
+  `(with-dirpath
+       (no-dots (fs/path (super-root) testres-dir ~tmpdir-relpath))
+       ~rel-path
      ~@body))
 
 (comment 

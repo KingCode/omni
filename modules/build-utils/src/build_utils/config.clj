@@ -181,7 +181,7 @@
        ;; <is> a problem
        [true    false      _          true       _        :sandbox] (do-throw)
        [true    false      _            _        _        :exclude] (do-throw)
-       [true    false      _            _       true      :overwrite] (do-throw)
+       [true    false      _            _       true      :no-overwrite] (do-throw)
        ;; catch-all errors
        [true     _         _            _         _            _    ] (pr+return-v)
        ;; catch-all success
@@ -228,3 +228,22 @@
      "No overwrite violation. "
      :no-overwrite
      config)))
+
+(defn check-config [cfg & bool-add-ons]
+  (let [cfg (->> bool-add-ons (reduce #(assoc % %2 true) cfg))
+        fut #(future (try (%2 cfg) (catch clojure.lang.ExceptionInfo _ %)))
+        violations (->> [check-sandbox-violation
+                         check-strict-violation
+                         check-excluded-violation
+                         check-no-overwrite-violation]
+                        (map fut [:sandbox :strict :exclude :no-overwrite])
+                        doall
+                        (map deref)
+                        (filter identity))]
+    (when (seq violations)
+      (throw (ex-info 
+              (str "One or more violations found. You may want to invoke"
+                   " the equivalent build-utils.config/check-*-violation fns"
+                   " individually with this configuration.")
+              {:violations violations
+               :configuration cfg})))))

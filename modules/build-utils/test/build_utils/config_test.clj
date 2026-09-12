@@ -6,7 +6,8 @@
                      check-sandbox-violation
                      check-strict-violation
                      check-excluded-violation
-                     check-no-overwrite-violation]]
+                     check-no-overwrite-violation
+                     check-config]]
             [clojure.test :refer [deftest testing is are]]
             [babashka.fs :as fs]
             [build-utils.util :as u]
@@ -148,7 +149,32 @@
           "tmp")))))
 
 
+(defn new-config-under-test-resources-tmp [tmpdir-path tgt excl kws]
+  (apply new-config test-resources-dir 
+         (->> tgt (fs/path tmpdir-path) fs/normalize str) 
+         excl kws))
 
+(deftest check-config-test
+  (let [tmpdir-path "tmp"
+        nc (partial new-config-under-test-resources-tmp tmpdir-path)]
+    (tu/within-test-resources-dir tmpdir-path
+      (testing "that each violation if any, is collected"
+        (are [tgt excl bool-kws expected]
+            (tu/within-test-resources-tmpdir 
+                tmpdir-path tgt 
+              (let [cfg (nc tgt excl bool-kws)]
+                (is  (= (set expected) 
+                        (-> (is (thrown? clojure.lang.ExceptionInfo 
+                                         (check-config cfg)))
+                            ex-data
+                            (get :violations)
+                            set)))))
 
+          "a" [] [:no-overwrite?]
+          [:no-overwrite]))
 
-
+      (testing "compliant configurations"
+        (are [tgt excl bool-kws]
+            (nil? (check-config (nc tgt excl bool-kws)))
+          "target" [] [:no-overwrite?]))))
+)
