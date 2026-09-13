@@ -133,7 +133,7 @@
 (deftest check-overwrite-violation-test 
   (let [nc #(new-config test-resources-dir % [] :no-overwrite?)]
     (testing "no-overwrite violations detection"
-      #_(are [relpath-to-create]
+      (are [relpath-to-create]
           (tu/within-test-resources-dir relpath-to-create 
             ;; new name for clarity
             (let [existing-dir relpath-to-create
