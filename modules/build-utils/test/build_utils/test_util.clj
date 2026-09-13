@@ -1,5 +1,6 @@
 (ns build-utils.test-util
   (:require [build-utils.util :refer [join-path path-elems ->Path]]
+            [clojure.string :as str]
             [babashka.fs :as fs]
             [clojure.walk :as w]))
 
@@ -23,16 +24,28 @@
 
 (defn no-dots [path] (-> path fs/normalize str))
 
-(defmacro with-dirpath
+(defn create-trees [paths] (->> paths (map fs/create-dirs) doall))
+(defn delete-trees [paths] (->> paths (map fs/delete-tree) doall))
+
+(defmacro maybe [dry-run? & body]
+  `(if ~dry-run?
+     (println "(dry-run, nothing done).")
+     ~@body))
+
+(defmacro with-dirpaths-impl
   "Creates (base-dir)/(rel-path) as a directory hierarchy (mkdir -p style),
    runs body, then deletes that subtree (rm -rf), even if body throws.
 
    Throws ex-info if base-dir does not exist, or exists but isn't a directory."
-  [base-dir rel-path & body]
-  `(let [rel-path# (no-dots ~rel-path)
+  [base-dir rel-paths dry-run? & body]
+  `(let [rel-paths# (->> ~rel-paths (map no-dots))
          base-dir#  (no-dots ~base-dir)
-         full-path# (no-dots (fs/path base-dir# ~rel-path))
-         delete-root# (fs/path base-dir# (-> rel-path# split-path first))]
+         full-paths# (->> rel-paths# 
+                          (map #(->> % (fs/path base-dir#))))
+         delete-roots# (->> rel-paths# 
+                            (sequence (comp 
+                                       (map #(-> % split-path first))
+                                       (map #(fs/path base-dir# %)))))]
      ;; (println :FULL-PATH full-path#)
      ;; (println :BASE-DIR base-dir#)
      (cond
@@ -42,29 +55,38 @@
        (not (fs/directory? base-dir#))
        (throw (ex-info "Path exists but is not a directory" {:base-dir base-dir#}))
 
-       (= base-dir# (no-dots full-path#))
-       (throw (ex-info "Path is base directory, must be a subdirectory."
-                       {:base-dir base-dir# :full-path full-path#})))
-     (println "Creating path:\n\t" (str full-path#))
-     (fs/create-dirs full-path#)
+       (some #{base-dir#} full-paths#)
+       ;; (= base-dir# (no-dots full-path#))
+       (throw (ex-info 
+               "One or more paths are base directory, must be a subdirectory."
+                       {:base-dir base-dir# :full-paths full-paths#})))
+     (println "Creating paths:\n\t" (->> full-paths# (str/join "\n\t")))
+     (maybe ~dry-run? (create-trees full-paths#))
      (try
        ~@body
        (finally
-         (println "Deleting directory tree:\n\t" (str delete-root#))
-         (fs/delete-tree delete-root#)))))
+         (println "Deleting directories :\n\t" (->> delete-roots#
+                                                    (str/join "\n\t")))
+         (maybe ~dry-run? (delete-trees delete-roots#))))))
+
+(defmacro with-dirpaths [base-dir rel-paths & body]
+  `(with-dirpaths-impl ~base-dir ~rel-paths nil ~@body))
+
+(defmacro with-dirpaths-dryrun [base-dir rel-paths & body]
+  `(with-dirpaths-impl ~base-dir ~rel-paths :dry-run ~@body))
 
 (def testres-dir "modules/build-utils/test-resources")
 
 (defmacro within-test-resources-dir [rel-path & body]
-  `(with-dirpath 
-       (str (fs/path (super-root) testres-dir))
-       ~rel-path 
+  `(with-dirpaths 
+       (test-resources-tip)
+       [~rel-path] 
      ~@body))
 
 (defmacro within-test-resources-tmpdir [tmpdir-relpath rel-path & body]
-  `(with-dirpath
+  `(with-dirpaths
        (no-dots (fs/path (super-root) testres-dir ~tmpdir-relpath))
-       ~rel-path
+       [~rel-path]
      ~@body))
 
 (comment 
