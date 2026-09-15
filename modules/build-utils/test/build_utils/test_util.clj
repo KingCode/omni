@@ -27,10 +27,18 @@
 (defn create-trees [paths] (->> paths (map fs/create-dirs) doall))
 (defn delete-trees [paths] (->> paths (map fs/delete-tree) doall))
 
+
+(def ^:dynamic *verbose?* false)
+
+(defmacro report [print-arg & args]
+  `(when *verbose?* 
+     (apply println ~print-arg ~(vec args))))
+
 (defmacro maybe [dry-run? & body]
   `(if ~dry-run?
-     (println "(dry-run, nothing done).")
+     (report "(dry-run, nothing done).")
      ~@body))
+
 
 (defmacro with-dirpaths-impl
   "Creates (base-dir)/(rel-path) as a directory hierarchy (mkdir -p style),
@@ -60,12 +68,12 @@
        (throw (ex-info 
                "One or more paths are base directory, must be a subdirectory."
                        {:base-dir base-dir# :full-paths full-paths#})))
-     (println "Creating paths:\n\t" (->> full-paths# (str/join "\n\t")))
+     (report "Creating paths:\n\t" (->> full-paths# (str/join "\n\t")))
      (maybe ~dry-run? (create-trees full-paths#))
      (try
        ~@body
        (finally
-         (println "Deleting directories :\n\t" (->> delete-roots#
+         (report "Deleting directories :\n\t" (->> delete-roots#
                                                     (str/join "\n\t")))
          (maybe ~dry-run? (delete-trees delete-roots#))))))
 
@@ -83,13 +91,26 @@
        [~rel-path] 
      ~@body))
 
-(defmacro within-test-resources-tmpdir [tmpdir-relpath rel-path & body]
-  `(with-dirpaths
+(defn subdir-paths [parent paths]
+  (->> paths (map #(->> % (fs/path parent) no-dots))))
+
+(defmacro within-test-resources-tmpdir [tmpdir-relpath rel-paths & body]
+  `(let [tmp# ~tmpdir-relpath]
+     (with-dirpaths
+         (no-dots (fs/path (super-root) testres-dir)) 
+         (subdir-paths tmp# ~rel-paths)
+       ~@body)))
+
+(comment
+(defmacro within-test-resources-tmpdir-dryrun [tmpdir-relpath rel-paths & body]
+  `(with-dirpaths-dryrun
        (no-dots (fs/path (super-root) testres-dir ~tmpdir-relpath))
-       [~rel-path]
+       ~rel-paths
      ~@body))
 
-(comment 
+ (within-test-resources-dir "tmp"
+   (within-test-resources-tmpdir "tmp" ["TMP" "a" "b/c"] (Thread/sleep 10000) ))
+
   (= (fs/cwd)  (fs/path "."))
   (instance? java.nio.file.Path (fs/cwd))
   (fs/path ".")

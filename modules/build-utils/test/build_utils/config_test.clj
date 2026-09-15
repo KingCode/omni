@@ -50,7 +50,10 @@
 
 (defn new-config 
   ([root-dir target-dir excluded & bool-kws]
-   (->> :dry-run? (conj bool-kws) bool-constraints flatten
+   (->> bool-kws bool-constraints flatten
+        (into [:excluded excluded :dry-run? :yes])
+        (apply create-config 'mylib "version-0" root-dir target-dir))
+   #_(->> :dry-run? (conj bool-kws) bool-constraints flatten
         (into [:excluded excluded])
         (apply create-config 'mylib "version-0" 
                root-dir target-dir )))
@@ -92,9 +95,9 @@
     (testing "sandbox compliance"
       (are [root-dir tgt-dir]
           (= nil (check-sandbox-violation (nc root-dir tgt-dir)))
-        "a/b/c" "../.."
-        "a" "b"
-        "a" "a/b"))))
+        "a/b/c" "a/b/c/../.."
+        "a" "a/b"
+        "a" "a/b/c"))))
 
 
 (deftest check-strict-violation-test
@@ -108,9 +111,9 @@
     (testing "strict mode compliance"
       (are [root-dir tgt-dir]
           (nil? (check-strict-violation (nc root-dir tgt-dir)))
-        "a" "a"
-        "a" "b"
-        "modules/build-utils" "target"))))
+        "a" "a/a"
+        "a" "a/b"
+        "modules/build-utils" "modules/build-utils/target"))))
 
 (deftest check-excluded-violation-test
   (let [nc #(new-config % %2 %3)]
@@ -130,17 +133,22 @@
         "a" "b" ["c" "d"]
         "a" "b/target" ["src" "test"]))))
 
+(defn tres-subpath [relpath]
+  (->> relpath (fs/path test-resources-dir) fs/normalize str))
+
 (deftest check-overwrite-violation-test 
-  (let [nc #(new-config test-resources-dir % [] :no-overwrite?)]
+  (let [nc #(new-config test-resources-dir 
+                        (tres-subpath %)
+                        [] :no-overwrite?)]
     (testing "no-overwrite violations detection"
       (are [relpath-to-create]
           (tu/within-test-resources-dir relpath-to-create 
             ;; new name for clarity
             (let [existing-dir relpath-to-create
                   cf (nc existing-dir)]
-              (= :no-overwrite (check-no-overwrite-violation cf))))
+              (is (= :no-overwrite (check-no-overwrite-violation cf)))))
         "tmp/a/b/c"
-        #_"tmp"))
+        "tmp"))
     (testing "no-overwrite violation compliance"
       (let [cf (nc "target")]
         (are [relpath-to-create]
@@ -149,35 +157,95 @@
           "tmp")))))
 
 
-(defn new-config-under-test-resources-tmp [tmpdir-path tgt excl kws]
+(defn new-config-under-test-resources-tmp [tmpdir-path tgt excl bool-flags]
   (apply new-config test-resources-dir 
-         (->> tgt (fs/path tmpdir-path) fs/normalize str) 
-         excl kws))
+         (->> tgt (fs/path tmpdir-path) tres-subpath) 
+         excl bool-flags))
+
+(defn new-config-under-test-resources-subdir
+  "Returns a new config, using paths, all relative as follows:
+     - subdir-path: direct subdir of `test-resources-dir`.
+                    a container dir for the other two
+     - root-path: relative to 'subdir-path'
+     - tgt-path: relative to 'subdir-path'
+  
+  For use by check-config-test.  
+  "
+ [subdir-path root-path tgt-path excl bool-flags]
+  (let [container (->> subdir-path (fs/path test-resources-dir) fs/normalize str)
+        root (->> root-path (fs/path container) fs/normalize str)
+        tgt (->> tgt-path (fs/path container) fs/normalize str)]
+    ;; (println :CONTAINER container) [container root tgt]
+    (apply new-config root tgt excl bool-flags)))
+
+(defmacro verbose [& body]
+  `(binding [tu/*verbose?* true]
+     ~@body))
+
+;; To 'quiet' verbose mode without taking out parens
+(defmacro quiet [& body]
+  `(binding [tu/*verbose?* nil]
+     ~@body))
 
 (deftest check-config-test
   (let [tmpdir-path "tmp"
-        nc (partial new-config-under-test-resources-tmp tmpdir-path)]
+        nc #_(-> new-config-under-test-resources-tmp tmpdir-path)
+        (fn [root tgt excl kws]
+          (-> (new-config-under-test-resources-subdir 
+               tmpdir-path
+               root tgt excl kws)
+              #_(dissoc :dry-run?)))]
+
     (tu/within-test-resources-dir tmpdir-path
       (testing "that each violation if any, is collected"
-        (are [tgt excl bool-kws expected]
-            (tu/within-test-resources-tmpdir 
-                tmpdir-path tgt 
-              (let [cfg (nc tgt excl bool-kws)]
-                (is  (= (set expected) 
-                        (-> (is (thrown? clojure.lang.ExceptionInfo 
-                                         (check-config cfg)))
-                            ex-data
-                            (get :violations)
-                            set)))))
+        (are [root tgt excl bool-kws expected]
+            (quiet
+              (tu/within-test-resources-tmpdir
+                  tmpdir-path [root tgt] 
+                (let [cfg (nc root tgt excl bool-kws)]
+                  (is  (= (set expected) 
+                          (-> (is (thrown? clojure.lang.ExceptionInfo 
+                                           (check-config cfg)))
+                              ex-data
+                              (get :violations)
+                              set))))))
 
-          "a" [] [:no-overwrite?]
+          "a" "a/b" [] [:no-overwrite?]
           [:no-overwrite]
 
-          "tmp" ["tmp"] [:strict? :no-overwrite? :sandboxed?]
-          [:no-overwrite :excluded]))
+          ;; "tmp" "tmp/a" ["tmp"] [:strict? :no-overwrite? :sandboxed?]
+          ;; [:no-overwrite :excluded]
+))
 
       (testing "compliant configurations"
-        (are [tgt excl bool-kws]
-            (nil? (check-config (nc tgt excl bool-kws)))
-          "target" [] [:no-overwrite?]))))
+        (are [root tgt excl bool-kws]
+            (nil? (check-config (nc root tgt excl bool-kws)))
+          "root" "root/target" [] [:no-overwrite?]))))
 )
+
+
+(comment 
+
+(def cf1 (new-config-under-test-resources-subdir 
+         "tmp" "a" "a/b" [] [:no-verwrite?]))
+(def cf1-paths ["a" "a/b"])
+
+(def cf2 (new-config-under-test-resources-subdir 
+         "tmp" "a/b/c/root" "target" [] [:no-verwrite?]))
+(def cf2-paths ["a/b/c/root" "target"])
+
+(defn test-cfg 
+  ([cfg paths] (apply test-cfg paths))
+  ([cfg root-path tgt-path]
+   (tu/within-test-resources-dir "tmp"
+     (Thread/sleep 5000)
+     
+     (tu/within-test-resources-tmpdir "tmp" [root-path tgt-path]
+       (Thread/sleep 10000)
+       (try 
+         (check-config cfg)
+         (catch clojure.lang.ExceptionInfo e
+           (ex-data e)))))))
+
+)
+

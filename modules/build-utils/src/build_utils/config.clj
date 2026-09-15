@@ -15,7 +15,7 @@
 (def default-target-dir "target")
 
 (defn create-config
-"Creates a configuration map to be passed to all functions in this namespace
+"Creates a configuration map used for build settings and error handling. 
   Arguments must be as follows:
     - lib: a namespace-qualified symbol for the published artifact to be produced
 
@@ -27,9 +27,10 @@
       java process; defaults to java environment property \"user.dir\"
 
     - target-dir: a string, the directory containing compiled classes and other
-      artifacts, relative to `root-dir`,defaults to \"target\". The target dir 
-      should be created and used only by the build scripts (client code), as it 
-      will be overwritten and deleted. Choose with care!
+      build artifacts, defaults to \"root-dir-path/target\". It can be any path
+      however, within root-dir or not. 
+      Choose with care, as it will cause existing directories/files to be 
+      overwritten, unless options :no-overwrite? is set.
 
   Optional arguments: 
   :sandboxed? if truthy, constrains root-dir and target-dir to be
@@ -59,7 +60,8 @@
      (->> {:lib lib
            :version version
            :root-dir (-> root-dir u/normalize)
-           :target-dir (u/normalize (u/join-path root-dir tgt-dir))
+           :target-dir (-> tgt-dir u/normalize)
+           ;; (u/normalize (u/join-path root-dir tgt-dir))
            :user-dir (user-dir)}
           (merge opts))))
   ([lib version root-dir]
