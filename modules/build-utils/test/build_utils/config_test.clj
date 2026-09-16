@@ -13,6 +13,13 @@
             [build-utils.util :as u]
             [build-utils.test-util :as tu]))
 
+(comment 
+  (require '[build-utils.repl :as repl])
+  (defn reload []
+    (repl/reload))
+
+)
+
 (def user-dir 
   "The super-root of this project, .i.e. the parent of modules/build-utils
    and all other modules in the monorepo structure."
@@ -120,7 +127,7 @@
     (testing "excluded violations"
       (are [root-dir tgt-dir excl]
           (let [c (nc root-dir tgt-dir excl)]
-            (= :excluded (check-excluded-violation c)))
+            (= :exclude (check-excluded-violation c)))
         "a" "src/b" ["src" "test"]
         "a" "test/b" ["src" "test"]
         "a" "src/b/test" ["src" "test"]
@@ -197,7 +204,7 @@
               #_(dissoc :dry-run?)))]
 
     (tu/within-test-resources-dir tmpdir-path
-      (testing "that each violation if any, is collected"
+      (testing "that each violation is reported"
         (are [root tgt excl bool-kws expected]
             (quiet
               (tu/within-test-resources-tmpdir
@@ -213,6 +220,9 @@
           "a" "a/b" [] [:no-overwrite?]
           [:no-overwrite]
 
+
+          ;; "a" "b"   [] [:sandboxed?]
+          ;; [:sandbox]
           ;; "tmp" "tmp/a" ["tmp"] [:strict? :no-overwrite? :sandboxed?]
           ;; [:no-overwrite :excluded]
 ))

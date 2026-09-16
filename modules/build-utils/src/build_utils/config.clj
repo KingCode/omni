@@ -174,62 +174,56 @@
       
       (m/match 
        [failed? dry-run? sandboxed? strict? no-overwrite? violation-type]
-       ;; always report on dry-run
-       [true    true        _          _         _            _   ] (pr+return-v)
-       [true    false       _        true        _         :strict] (do-throw) 
-       [true    false     true       false       _         :strict] (pr+return-v) 
-       [true    false     true         _         _        :sandbox] (do-throw)
-       ;; unlikely, but if strict? is in config, a sandbox violation
-       ;; <is> a problem
-       [true    false      _          true       _        :sandbox] (do-throw)
-       [true    false      _            _        _        :exclude] (do-throw)
-       [true    false      _            _       true      :no-overwrite] (do-throw)
-       ;; catch-all errors
-       [true     _         _            _         _            _    ] (pr+return-v)
+       ;; always report errors on dry-run
+       [true    true        _          _         _            _   ] 
+       (pr+return-v)
+
+       [true    false     true         _         _         :sandbox] 
+       (do-throw) ;;(pr+return-v) 
+
+       [true    false       _        true        _         :strict]
+       (do-throw) 
+
+       [true    false      _            _       true      :no-overwrite]
+       (do-throw)
+
+       [true    false      _            _        _        :exclude]
+       (do-throw)
+
+       ;; Ignore error without its flag set 
+       [true     false     _            _         _            _    ] 
+       (return) ;;(pr+return-v)
+
        ;; catch-all success
        [false    _         _            _         _            _    ]
        (if single-check? (return) (pr-ok+return))))))
 
+(defn check-violation [failed? fail-msg ok-msg violation-kw config]
+  (handle-violation failed? fail-msg (violation-info config)
+                    ok-msg violation-kw config))
+
 (defn check-sandbox-violation [config]
-  (let [failed? (sandbox-violation? config)]
-    (handle-violation 
-     failed?
-     "Root-dir and target-dir must be children of user-dir:"
-     (violation-info config)
-     "No sandbox violation."
-     :sandbox
-     config)))
+  (check-violation (sandbox-violation? config)
+                   "Root-dir and target-dir must be children of user-dir:"
+                   "No sandbox violation." :sandbox config))
 
 (defn check-strict-violation [config]
-  (let [failed?  (strict-violation? config)]
-    (handle-violation 
-     failed?
-     "The containment hierarchy user-dir >= root-dir > target-dir is not respected:"
-     (violation-info config)
-     "No strict-mode violation."
-     :strict
-     config)))
+  (check-violation 
+   (strict-violation? config)
+   "The containment hierarchy user-dir >= root-dir > target-dir is not respected:"
+   "No strict-mode violation." :strict config))
 
 (defn check-excluded-violation [config]
-  (let [failed?  (excluded-violation? config)]
-    (handle-violation 
-     failed?
-     (str "The target directory has the name of an excluded directory"
-          " in its path. ")
-     (violation-info config)
-     "No excluded dir name in target's path elements."
-     :excluded
-     config)))
+  (check-violation 
+   (excluded-violation? config)
+   "The target directory has the name of an excluded directory in its path. "
+   "No excluded dir name in target's path elements." :exclude config))
 
 (defn check-no-overwrite-violation [config]
-  (let [failed? (overwrite-violation? config)]
-    (handle-violation
-     failed?
-     (str "The target directory already exist, and will be overwritten. ")
-     (violation-info config)
-     "No overwrite violation. "
-     :no-overwrite
-     config)))
+  (check-violation
+   (overwrite-violation? config)
+   "The target directory already exist, and will be overwritten. "
+   "No overwrite violation. " :no-overwrite config))
 
 (defn check-config [cfg & bool-add-ons]
   (let [cfg (->> bool-add-ons (reduce #(assoc % %2 true) cfg))
